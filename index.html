@@ -6,7 +6,7 @@
     <title>Rinamil</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
 </head>
 <body>
     <div class="app-container">
@@ -15,7 +15,7 @@
             <div class="login-container">
                 <div class="app-logo">
                     <h1>Rinamil</h1>
-                    <p></p>
+                    <p>Welcome My Love</p>
                 </div>
                 <form class="login-form" id="login-form">
                     <div class="form-group">
@@ -36,16 +36,25 @@
             <!-- Chat Header -->
             <div class="chat-header">
                 <div class="user-info">
-                    <img src="" alt="User Avatar" class="user-avatar" id="current-user-avatar">
+                    <div class="user-avatar">
+                        <img src="" alt="User Avatar" id="current-user-avatar">
+                    </div>
                     <div class="user-details">
-                        <h2 id="current-user-name">Rina</h2>
+                        <h2 id="current-user-name">Rinu</h2>
                         <p><span class="status-indicator online" id="status-indicator"></span> <span id="status-text">Online</span></p>
                     </div>
                 </div>
                 <div class="header-actions">
-                    <i class="fas fa-search" id="search-btn"></i>
-                    <i class="fas fa-ellipsis-v" id="menu-btn"></i>
+                    <i class="fas fa-search" id="search-btn" title="Search conversations"></i>
+                    <i class="fas fa-ellipsis-v" id="menu-btn" title="Menu"></i>
+                    <i class="fas fa-sign-out-alt" id="logout-btn" title="Logout"></i>
                 </div>
+            </div>
+
+            <!-- Search Container -->
+            <div class="search-container" id="search-container">
+                <input type="text" class="search-input" id="search-input" placeholder="Search conversations...">
+                <i class="fas fa-times close-search" id="close-search"></i>
             </div>
 
             <!-- Chat Container -->
@@ -56,9 +65,8 @@
             <!-- Input Area -->
             <div class="input-container">
                 <div class="input-actions">
-                    <i class="far fa-smile" id="emoji-btn"></i>
-                    <i class="fas fa-paperclip" id="attachment-btn"></i>
-                    <i class="fas fa-gift" id="gif-btn"></i>
+                    <i class="fas fa-paperclip" id="attachment-btn" title="Attach file"></i>
+                    <i class="fas fa-gift" id="gif-btn" title="Send GIF"></i>
                 </div>
                 <textarea class="message-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
                 <button class="send-btn" id="send-btn">
@@ -66,9 +74,9 @@
                 </button>
             </div>
 
-            <!-- Emoji Picker -->
-            <div class="emoji-picker" id="emoji-picker">
-                <!-- Emojis will be dynamically inserted here -->
+            <!-- GIF Picker -->
+            <div class="gif-picker" id="gif-picker">
+                <!-- GIFs will be dynamically inserted here -->
             </div>
 
             <!-- Export Menu -->

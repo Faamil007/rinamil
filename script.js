@@ -10,8 +10,10 @@ const passwordInput = document.getElementById('password');
 const chatContainer = document.getElementById('chat-container');
 const messageInput = document.getElementById('message-input');
 const sendBtn = document.getElementById('send-btn');
-const emojiBtn = document.getElementById('emoji-btn');
-const emojiPicker = document.getElementById('emoji-picker');
+const searchBtn = document.getElementById('search-btn');
+const searchContainer = document.getElementById('search-container');
+const searchInput = document.getElementById('search-input');
+const closeSearch = document.getElementById('close-search');
 const menuBtn = document.getElementById('menu-btn');
 const exportMenu = document.getElementById('export-menu');
 const exportHtml = document.getElementById('export-html');
@@ -22,26 +24,37 @@ const currentUserAvatar = document.getElementById('current-user-avatar');
 const currentUserName = document.getElementById('current-user-name');
 const statusIndicator = document.getElementById('status-indicator');
 const statusText = document.getElementById('status-text');
+const gifBtn = document.getElementById('gif-btn');
+const gifPicker = document.getElementById('gif-picker');
+const logoutBtn = document.getElementById('logout-btn');
 
 // User credentials
 const users = {
-    'm': { password: 'm', avatar: 'm.jpg', name: 'Aaro' },
-    'rinu': { password: 'rinu123', avatar: 'r.jpg', name: 'Rinzzz' }
+    'moham': { password: 'moham123', avatar: 'm.jpg', name: 'Moham' },
+    'rinu': { password: 'rinu123', avatar: 'r.jpg', name: 'Rinu' }
 };
 
 // Current user
 let currentUser = null;
 let otherUser = null;
 let authToken = null;
+let messagePollingInterval = null;
+let statusPollingInterval = null;
 
-// Emoji list
-const emojis = ['😀', '😃', '😄', '😁', '😆', '😅', '😂', '🤣', '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🫣', '🤗', '🫡', '🤔', '🫢', '🤭', '🤫', '🤥', '😶', '🫠', '😐', '🫤', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🫥', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑', '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻', '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸', '😹', '😻', '😼', '😽', '🙀', '😿', '😾'];
+// Popular GIFs for demo
+const popularGifs = [
+    'https://media.giphy.com/media/26uf758UnUIJTIEDq/giphy.gif',
+    'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
+    'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+    'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    'https://media.giphy.com/media/3o7aD2d7hy9ktXNDP2/giphy.gif',
+    'https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif',
+    'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    'https://media.giphy.com/media/l0HlG8vJXW0X5yX4s/giphy.gif'
+];
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
-    // Generate emoji picker
-    generateEmojiPicker();
-    
     // Check if user is already logged in
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
@@ -51,8 +64,7 @@ document.addEventListener('DOMContentLoaded', function() {
         authToken = userData.authToken;
         
         // Update UI with user info
-        currentUserAvatar.src = users[currentUser].avatar;
-        currentUserName.textContent = users[currentUser].name;
+        updateUserInfo();
         
         // Show chat screen
         loginScreen.style.display = 'none';
@@ -70,6 +82,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Set up event listeners
     setupEventListeners();
+    
+    // Generate GIF picker
+    generateGifPicker();
 });
 
 // Set up all event listeners
@@ -77,19 +92,23 @@ function setupEventListeners() {
     loginForm.addEventListener('submit', handleLogin);
     sendBtn.addEventListener('click', sendMessage);
     messageInput.addEventListener('keypress', handleMessageKeypress);
-    emojiBtn.addEventListener('click', toggleEmojiPicker);
+    searchBtn.addEventListener('click', toggleSearch);
+    closeSearch.addEventListener('click', toggleSearch);
+    searchInput.addEventListener('input', handleSearch);
     menuBtn.addEventListener('click', toggleExportMenu);
     exportHtml.addEventListener('click', () => exportChats('html'));
     exportTxt.addEventListener('click', () => exportChats('text'));
+    gifBtn.addEventListener('click', toggleGifPicker);
+    logoutBtn.addEventListener('click', handleLogout);
     
-    // Close emoji picker and export menu when clicking outside
+    // Close menus when clicking outside
     document.addEventListener('click', function(e) {
-        if (!emojiBtn.contains(e.target) && !emojiPicker.contains(e.target)) {
-            emojiPicker.classList.remove('active');
-        }
-        
         if (!menuBtn.contains(e.target) && !exportMenu.contains(e.target)) {
             exportMenu.classList.remove('active');
+        }
+        
+        if (!gifBtn.contains(e.target) && !gifPicker.contains(e.target)) {
+            gifPicker.classList.remove('active');
         }
     });
     
@@ -98,6 +117,12 @@ function setupEventListeners() {
         this.style.height = 'auto';
         this.style.height = (this.scrollHeight) + 'px';
     });
+}
+
+// Update user info in UI
+function updateUserInfo() {
+    currentUserAvatar.src = users[currentUser].avatar;
+    currentUserName.textContent = users[currentUser].name;
 }
 
 // Handle login form submission
@@ -109,10 +134,9 @@ function handleLogin(e) {
     
     if (users[username] && users[username].password === password) {
         // For demo purposes, we're using a simple auth token
-        // In a real app, you'd get this from your backend after successful login
         authToken = btoa('oursecretplace:sharedpassword123');
         currentUser = username;
-        otherUser = username === 'moham' ? 'rina' : 'moham';
+        otherUser = username === 'moham' ? 'rinu' : 'moham';
         
         // Save user data to localStorage
         localStorage.setItem('currentUser', JSON.stringify({
@@ -122,8 +146,7 @@ function handleLogin(e) {
         }));
         
         // Update UI with user info
-        currentUserAvatar.src = users[username].avatar;
-        currentUserName.textContent = users[username].name;
+        updateUserInfo();
         
         // Show chat screen
         loginScreen.style.display = 'none';
@@ -145,18 +168,18 @@ function handleLogin(e) {
     }
 }
 
-// Generate emoji picker
-function generateEmojiPicker() {
-    emojiPicker.innerHTML = '';
-    emojis.forEach(emoji => {
-        const emojiElement = document.createElement('span');
-        emojiElement.classList.add('emoji');
-        emojiElement.textContent = emoji;
-        emojiElement.addEventListener('click', () => {
-            messageInput.value += emoji;
-            messageInput.focus();
+// Generate GIF picker
+function generateGifPicker() {
+    gifPicker.innerHTML = '';
+    popularGifs.forEach(gifUrl => {
+        const gifElement = document.createElement('div');
+        gifElement.classList.add('gif-item');
+        gifElement.innerHTML = `<img src="${gifUrl}" alt="GIF">`;
+        gifElement.addEventListener('click', () => {
+            sendGifMessage(gifUrl);
+            gifPicker.classList.remove('active');
         });
-        emojiPicker.appendChild(emojiElement);
+        gifPicker.appendChild(gifElement);
     });
 }
 
@@ -176,7 +199,7 @@ function showNotification(text) {
     
     setTimeout(() => {
         notification.classList.remove('active');
-    }, 1000);
+    }, 3000);
 }
 
 // Request notification permission
@@ -235,6 +258,15 @@ async function loadMessages() {
 function renderMessages(messages) {
     chatContainer.innerHTML = '';
     
+    // Filter messages if search is active
+    const searchText = searchInput.value.toLowerCase();
+    if (searchText) {
+        messages = messages.filter(msg => {
+            const decryptedText = decryptMessage(msg.text);
+            return decryptedText.toLowerCase().includes(searchText);
+        });
+    }
+    
     messages.forEach(msg => {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
@@ -245,13 +277,23 @@ function renderMessages(messages) {
             messageElement.classList.add('incoming');
         }
         
-        const decryptedText = decryptMessage(msg.text);
-        
-        messageElement.innerHTML = `
-            <div class="message-sender">${msg.sender === 'moham' ? 'Moham' : 'Rina'}</div>
-            <div class="message-text">${decryptedText}</div>
-            <div class="message-time">${formatTime(new Date(msg.timestamp))} <span class="message-status">${msg.status || '✓✓'}</span></div>
-        `;
+        // Check if message is a GIF
+        if (msg.text.startsWith('GIF:')) {
+            messageElement.classList.add('gif-message');
+            const gifUrl = msg.text.substring(4);
+            messageElement.innerHTML = `
+                <div class="message-sender">${msg.sender === 'moham' ? 'Moham' : 'Rinu'}</div>
+                <img src="${gifUrl}" alt="GIF">
+                <div class="message-time">${formatTime(new Date(msg.timestamp))} <span class="message-status">${msg.status || '✓✓'}</span></div>
+            `;
+        } else {
+            const decryptedText = decryptMessage(msg.text);
+            messageElement.innerHTML = `
+                <div class="message-sender">${msg.sender === 'moham' ? 'Moham' : 'Rinu'}</div>
+                <div class="message-text">${decryptedText}</div>
+                <div class="message-time">${formatTime(new Date(msg.timestamp))} <span class="message-status">${msg.status || '✓✓'}</span></div>
+            `;
+        }
         
         chatContainer.appendChild(messageElement);
     });
@@ -289,12 +331,8 @@ async function sendMessage() {
         
         if (response.ok) {
             messageInput.value = '';
+            messageInput.style.height = 'auto';
             loadMessages(); // Reload messages to include the new one
-            
-            // Simulate response after a delay
-            setTimeout(() => {
-                simulateResponse();
-            }, 2000);
         } else {
             console.error('Failed to send message:', response.status);
             showNotification('Failed to send message. Please try again.');
@@ -302,6 +340,38 @@ async function sendMessage() {
     } catch (error) {
         console.error('Error sending message:', error);
         showNotification('Failed to send message. Please check your connection.');
+    }
+}
+
+// Send GIF message
+async function sendGifMessage(gifUrl) {
+    const now = new Date();
+    
+    const message = {
+        sender: currentUser,
+        text: 'GIF:' + gifUrl,
+        timestamp: now.getTime()
+    };
+    
+    try {
+        const response = await fetch(`${API_BASE_URL}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${authToken}`
+            },
+            body: JSON.stringify(message)
+        });
+        
+        if (response.ok) {
+            loadMessages(); // Reload messages to include the new one
+        } else {
+            console.error('Failed to send GIF message:', response.status);
+            showNotification('Failed to send GIF. Please try again.');
+        }
+    } catch (error) {
+        console.error('Error sending GIF message:', error);
+        showNotification('Failed to send GIF. Please check your connection.');
     }
 }
 
@@ -313,43 +383,67 @@ function handleMessageKeypress(e) {
     }
 }
 
-// Toggle emoji picker
-function toggleEmojiPicker() {
-    emojiPicker.classList.toggle('active');
+// Toggle search
+function toggleSearch() {
+    searchContainer.classList.toggle('active');
+    if (searchContainer.classList.contains('active')) {
+        searchInput.focus();
+    } else {
+        searchInput.value = '';
+        loadMessages();
+    }
+}
+
+// Handle search
+function handleSearch() {
+    loadMessages();
 }
 
 // Toggle export menu
 function toggleExportMenu() {
-    if (currentUser === 'moham') {
-        exportMenu.classList.toggle('active');
-    }
+    exportMenu.classList.toggle('active');
+}
+
+// Toggle GIF picker
+function toggleGifPicker() {
+    gifPicker.classList.toggle('active');
 }
 
 // Export chats
 function exportChats(format) {
     // For demo purposes, we'll use the sample messages
     // In a real app, you would fetch the actual messages from the backend
-    const messages = JSON.parse(localStorage.getItem('rina_mel_chat_messages')) || [];
+    const messages = JSON.parse(localStorage.getItem('rinamil_chat_messages')) || [];
     
     let content = '';
     const date = new Date().toLocaleDateString().replace(/\//g, '-');
     
     if (format === 'html') {
         content = `<!DOCTYPE html><html><head><title>Chat Export - ${date}</title><meta charset="UTF-8"></head><body>`;
-        content += `<h1>Rina Mel Chat Export - ${date}</h1>`;
+        content += `<h1>Rinamil Export - ${date}</h1>`;
         
         messages.forEach(msg => {
-            const decryptedText = decryptMessage(msg.text);
-            content += `<p><strong>${msg.sender} (${formatTime(new Date(msg.timestamp))}):</strong> ${decryptedText}</p>`;
+            if (msg.text.startsWith('GIF:')) {
+                const gifUrl = msg.text.substring(4);
+                content += `<p><strong>${msg.sender} (${formatTime(new Date(msg.timestamp))}):</strong> <img src="${gifUrl}" alt="GIF" style="max-width: 200px;"></p>`;
+            } else {
+                const decryptedText = decryptMessage(msg.text);
+                content += `<p><strong>${msg.sender} (${formatTime(new Date(msg.timestamp))}):</strong> ${decryptedText}</p>`;
+            }
         });
         
         content += `</body></html>`;
     } else {
-        content = `Rina Mel Chat Export - ${date}\n\n`;
+        content = `Rinamil Chat Export - ${date}\n\n`;
         
         messages.forEach(msg => {
-            const decryptedText = decryptMessage(msg.text);
-            content += `${msg.sender} (${formatTime(new Date(msg.timestamp))}): ${decryptedText}\n`;
+            if (msg.text.startsWith('GIF:')) {
+                const gifUrl = msg.text.substring(4);
+                content += `${msg.sender} (${formatTime(new Date(msg.timestamp))}): [GIF] ${gifUrl}\n`;
+            } else {
+                const decryptedText = decryptMessage(msg.text);
+                content += `${msg.sender} (${formatTime(new Date(msg.timestamp))}): ${decryptedText}\n`;
+            }
         });
     }
     
@@ -357,7 +451,7 @@ function exportChats(format) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `rina_mel_chat_export_${date}.${format === 'html' ? 'html' : 'txt'}`;
+    a.download = `rinamil_chat_export_${date}.${format === 'html' ? 'html' : 'txt'}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -369,14 +463,18 @@ function exportChats(format) {
 
 // Start polling for new messages
 function startMessagePolling() {
-    // Poll for new messages every 5 seconds
-    setInterval(() => {
+    // Clear any existing interval
+    if (messagePollingInterval) clearInterval(messagePollingInterval);
+    
+    // Poll for new messages every 3 seconds
+    messagePollingInterval = setInterval(() => {
         loadMessages();
-    }, 5000);
+    }, 3000);
     
     // Simulate online status changes
-    setInterval(() => {
-        const isOnline = Math.random() > 0.3; // 70% chance online
+    if (statusPollingInterval) clearInterval(statusPollingInterval);
+    statusPollingInterval = setInterval(() => {
+        const isOnline = Math.random() > 0.2; // 80% chance online
         
         if (isOnline) {
             statusIndicator.classList.remove('offline');
@@ -388,4 +486,33 @@ function startMessagePolling() {
             statusText.textContent = 'Offline';
         }
     }, 10000);
+}
+
+// Handle logout
+function handleLogout() {
+    if (confirm('Are you sure you want to logout?')) {
+        // Clear intervals
+        if (messagePollingInterval) clearInterval(messagePollingInterval);
+        if (statusPollingInterval) clearInterval(statusPollingInterval);
+        
+        // Clear local storage
+        localStorage.removeItem('currentUser');
+        
+        // Reset UI
+        messageInput.value = '';
+        chatContainer.innerHTML = '';
+        searchInput.value = '';
+        searchContainer.classList.remove('active');
+        
+        // Show login screen, hide chat screen
+        loginScreen.style.display = 'flex';
+        chatScreen.style.display = 'none';
+        
+        // Reset form fields
+        usernameInput.value = '';
+        passwordInput.value = '';
+        
+        // Show logout notification
+        showNotification('You have been logged out successfully');
+    }
 }
