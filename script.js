@@ -260,37 +260,7 @@ function renderMessages(messages) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Render sample messages (for demo purposes)
-function renderSampleMessages() {
-    const sampleMessages = [
-        {
-            sender: 'rina',
-            text: encryptMessage("Hey there! How's your day going? 😊"),
-            timestamp: Date.now() - 3600000,
-            status: '✓✓✓'
-        },
-        {
-            sender: 'moham',
-            text: encryptMessage("It's going well! Just working on our chat app. 💻"),
-            timestamp: Date.now() - 3500000,
-            status: '✓✓✓'
-        },
-        {
-            sender: 'rina',
-            text: encryptMessage("That's awesome! I can't wait to try it out! 🎉"),
-            timestamp: Date.now() - 3400000,
-            status: '✓✓✓'
-        },
-        {
-            sender: 'moham',
-            text: encryptMessage("It's almost ready. Just finishing up the encryption. 🔒"),
-            timestamp: Date.now() - 3300000,
-            status: '✓✓✓'
-        }
-    ];
-    
-    renderMessages(sampleMessages);
-}
+
 
 // Send message
 async function sendMessage() {
