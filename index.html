@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rina Mel Chat</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Login Screen -->
+        <div id="login-screen">
+            <div class="login-container">
+                <div class="app-logo">
+                    <h1>Rina Mel Chat</h1>
+                    <p>Secure and private messaging</p>
+                </div>
+                <form class="login-form" id="login-form">
+                    <div class="form-group">
+                        <label for="username">Username</label>
+                        <input type="text" id="username" placeholder="Enter your username" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Password</label>
+                        <input type="password" id="password" placeholder="Enter your password" required>
+                    </div>
+                    <button type="submit" class="login-btn">Login</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Chat Screen -->
+        <div id="chat-screen">
+            <!-- Chat Header -->
+            <div class="chat-header">
+                <div class="user-info">
+                    <img src="" alt="User Avatar" class="user-avatar" id="current-user-avatar">
+                    <div class="user-details">
+                        <h2 id="current-user-name">Rina</h2>
+                        <p><span class="status-indicator online" id="status-indicator"></span> <span id="status-text">Online</span></p>
+                    </div>
+                </div>
+                <div class="header-actions">
+                    <i class="fas fa-search" id="search-btn"></i>
+                    <i class="fas fa-ellipsis-v" id="menu-btn"></i>
+                </div>
+            </div>
+
+            <!-- Chat Container -->
+            <div class="chat-container" id="chat-container">
+                <!-- Messages will be dynamically inserted here -->
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <div class="input-actions">
+                    <i class="far fa-smile" id="emoji-btn"></i>
+                    <i class="fas fa-paperclip" id="attachment-btn"></i>
+                    <i class="fas fa-gift" id="gif-btn"></i>
+                </div>
+                <textarea class="message-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
+                <button class="send-btn" id="send-btn">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+
+            <!-- Emoji Picker -->
+            <div class="emoji-picker" id="emoji-picker">
+                <!-- Emojis will be dynamically inserted here -->
+            </div>
+
+            <!-- Export Menu -->
+            <div class="export-menu" id="export-menu">
+                <div class="export-option" id="export-html">
+                    <i class="fas fa-file-code"></i>
+                    <span>Export as HTML</span>
+                </div>
+                <div class="export-option" id="export-txt">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Export as Text</span>
+                </div>
+            </div>
+
+            <!-- Notification -->
+            <div class="notification" id="notification">
+                <i class="fas fa-bell"></i>
+                <span id="notification-text">New message received</span>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
