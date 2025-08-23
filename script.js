@@ -25,8 +25,8 @@ const statusText = document.getElementById('status-text');
 
 // User credentials
 const users = {
-    'moham': { password: 'moham123', avatar: 'moham-profile.jpg', name: 'Moham' },
-    'rina': { password: 'rina123', avatar: 'rina-profile.jpg', name: 'Rina' }
+    'm': { password: 'm', avatar: 'm.jpg', name: 'Aaro' },
+    'rinu': { password: 'rinu123', avatar: 'r.jpg', name: 'Rinzzz' }
 };
 
 // Current user
@@ -171,12 +171,12 @@ function showNotification(text) {
     
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Rina Mel Chat', { body: text });
+        new Notification('Rinamil', { body: text });
     }
     
     setTimeout(() => {
         notification.classList.remove('active');
-    }, 3000);
+    }, 1000);
 }
 
 // Request notification permission
@@ -303,41 +303,6 @@ async function sendMessage() {
         console.error('Error sending message:', error);
         showNotification('Failed to send message. Please check your connection.');
     }
-}
-
-// Simulate response from the other user
-function simulateResponse() {
-    const responses = [
-        "Hey there! 😊",
-        "How's your day going?",
-        "I was just thinking about you!",
-        "Tell me more about that...",
-        "I understand how you feel.",
-        "That's really interesting!",
-        "I'm here for you always ❤️",
-        "What are your plans for tomorrow?",
-        "I miss you! 💕",
-        "You mean the world to me 🌎"
-    ];
-    
-    const randomResponse = responses[Math.floor(Math.random() * responses.length)];
-    const encryptedResponse = encryptMessage(randomResponse);
-    
-    const responseMessage = {
-        sender: otherUser,
-        text: encryptedResponse,
-        timestamp: new Date().getTime(),
-        status: '✓✓✓'
-    };
-    
-    // In a real app, this would come from the backend
-    // For demo purposes, we'll add it directly to the UI
-    const messages = JSON.parse(localStorage.getItem('rina_mel_chat_messages')) || [];
-    messages.push(responseMessage);
-    localStorage.setItem('rina_mel_chat_messages', JSON.stringify(messages));
-    
-    renderMessages(messages);
-    showNotification(`New message from ${otherUser === 'moham' ? 'Moham' : 'Rina'}`);
 }
 
 // Handle message input keypress
