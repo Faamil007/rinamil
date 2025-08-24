@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Rinamil</title>
+    <title>RinaMil - Login</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap">
@@ -14,8 +14,8 @@
         <div id="login-screen">
             <div class="login-container">
                 <div class="app-logo">
-                    <h1>Rinamil</h1>
-                    <p>Welcome My Love</p>
+                    <h1>RinaMil</h1>
+                    <p>Secure Private Messaging</p>
                 </div>
                 <form class="login-form" id="login-form">
                     <div class="form-group">
@@ -28,73 +28,6 @@
                     </div>
                     <button type="submit" class="login-btn">Login</button>
                 </form>
-            </div>
-        </div>
-
-        <!-- Chat Screen -->
-        <div id="chat-screen">
-            <!-- Chat Header -->
-            <div class="chat-header">
-                <div class="user-info">
-                    <div class="user-avatar">
-                        <img src="" alt="User Avatar" id="current-user-avatar">
-                    </div>
-                    <div class="user-details">
-                        <h2 id="current-user-name">Rinu</h2>
-                        <p><span class="status-indicator online" id="status-indicator"></span> <span id="status-text">Online</span></p>
-                    </div>
-                </div>
-                <div class="header-actions">
-                    <i class="fas fa-search" id="search-btn" title="Search conversations"></i>
-                    <i class="fas fa-ellipsis-v" id="menu-btn" title="Menu"></i>
-                    <i class="fas fa-sign-out-alt" id="logout-btn" title="Logout"></i>
-                </div>
-            </div>
-
-            <!-- Search Container -->
-            <div class="search-container" id="search-container">
-                <input type="text" class="search-input" id="search-input" placeholder="Search conversations...">
-                <i class="fas fa-times close-search" id="close-search"></i>
-            </div>
-
-            <!-- Chat Container -->
-            <div class="chat-container" id="chat-container">
-                <!-- Messages will be dynamically inserted here -->
-            </div>
-
-            <!-- Input Area -->
-            <div class="input-container">
-                <div class="input-actions">
-                    <i class="fas fa-paperclip" id="attachment-btn" title="Attach file"></i>
-                    <i class="fas fa-gift" id="gif-btn" title="Send GIF"></i>
-                </div>
-                <textarea class="message-input" id="message-input" placeholder="Type a message..." rows="1"></textarea>
-                <button class="send-btn" id="send-btn">
-                    <i class="fas fa-paper-plane"></i>
-                </button>
-            </div>
-
-            <!-- GIF Picker -->
-            <div class="gif-picker" id="gif-picker">
-                <!-- GIFs will be dynamically inserted here -->
-            </div>
-
-            <!-- Export Menu -->
-            <div class="export-menu" id="export-menu">
-                <div class="export-option" id="export-html">
-                    <i class="fas fa-file-code"></i>
-                    <span>Export as HTML</span>
-                </div>
-                <div class="export-option" id="export-txt">
-                    <i class="fas fa-file-alt"></i>
-                    <span>Export as Text</span>
-                </div>
-            </div>
-
-            <!-- Notification -->
-            <div class="notification" id="notification">
-                <i class="fas fa-bell"></i>
-                <span id="notification-text">New message received</span>
             </div>
         </div>
     </div>

@@ -27,6 +27,8 @@ const statusText = document.getElementById('status-text');
 const gifBtn = document.getElementById('gif-btn');
 const gifPicker = document.getElementById('gif-picker');
 const logoutBtn = document.getElementById('logout-btn');
+const notificationSound = document.getElementById('notification-sound');
+const connectionStatus = document.getElementById('connection-status');
 
 // User credentials
 const users = {
@@ -40,8 +42,10 @@ let otherUser = null;
 let authToken = null;
 let messagePollingInterval = null;
 let statusPollingInterval = null;
+let lastMessageTimestamp = 0;
+let messages = [];
 
-// Popular GIFs for demo
+// Popular GIFs
 const popularGifs = [
     'https://media.giphy.com/media/26uf758UnUIJTIEDq/giphy.gif',
     'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
@@ -55,74 +59,124 @@ const popularGifs = [
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
+    // Check which page we're on
+    if (window.location.pathname.endsWith('index.html') || window.location.pathname === '/') {
+        // Login page logic
+        setupLoginPage();
+    } else if (window.location.pathname.endsWith('chat.html')) {
+        // Chat page logic
+        setupChatPage();
+    }
+});
+
+// Setup login page
+function setupLoginPage() {
     // Check if user is already logged in
     const savedUser = localStorage.getItem('currentUser');
     if (savedUser) {
-        const userData = JSON.parse(savedUser);
-        currentUser = userData.username;
-        otherUser = userData.otherUser;
-        authToken = userData.authToken;
-        
-        // Update UI with user info
-        updateUserInfo();
-        
-        // Show chat screen
-        loginScreen.style.display = 'none';
-        chatScreen.style.display = 'flex';
-        
-        // Load messages
-        loadMessages();
-        
-        // Start polling for new messages
-        startMessagePolling();
-        
-        // Request notification permission
-        requestNotificationPermission();
+        // Redirect to chat page if already logged in
+        window.location.href = 'chat.html';
+        return;
     }
+    
+    // Set up login form event listener
+    if (loginForm) {
+        loginForm.addEventListener('submit', handleLogin);
+    }
+}
+
+// Setup chat page
+function setupChatPage() {
+    // Check if user is logged in
+    const savedUser = localStorage.getItem('currentUser');
+    if (!savedUser) {
+        // Redirect to login page if not logged in
+        window.location.href = 'index.html';
+        return;
+    }
+    
+    const userData = JSON.parse(savedUser);
+    currentUser = userData.username;
+    otherUser = userData.otherUser;
+    authToken = userData.authToken;
+    
+    // Update UI with user info
+    updateUserInfo();
+    
+    // Load messages
+    loadMessages();
+    
+    // Start polling for new messages
+    startMessagePolling();
+    
+    // Request notification permission
+    requestNotificationPermission();
     
     // Set up event listeners
     setupEventListeners();
     
-    // Generate GIF picker
-    generateGifPicker();
-});
+    // Test backend connection
+    testBackendConnection();
+}
+
+// Test backend connection
+async function testBackendConnection() {
+    try {
+        connectionStatus.textContent = "Testing connection...";
+        const response = await fetch(`${API_BASE_URL}/`);
+        if (response.ok) {
+            connectionStatus.textContent = "Connected to backend";
+            setTimeout(() => {
+                connectionStatus.style.display = "none";
+            }, 2000);
+        } else {
+            connectionStatus.textContent = "Backend connection failed";
+            connectionStatus.style.backgroundColor = "rgba(220, 50, 50, 0.7)";
+        }
+    } catch (error) {
+        console.error("Backend connection failed:", error);
+        connectionStatus.textContent = "Backend connection failed";
+        connectionStatus.style.backgroundColor = "rgba(220, 50, 50, 0.7)";
+    }
+}
 
 // Set up all event listeners
 function setupEventListeners() {
-    loginForm.addEventListener('submit', handleLogin);
-    sendBtn.addEventListener('click', sendMessage);
-    messageInput.addEventListener('keypress', handleMessageKeypress);
-    searchBtn.addEventListener('click', toggleSearch);
-    closeSearch.addEventListener('click', toggleSearch);
-    searchInput.addEventListener('input', handleSearch);
-    menuBtn.addEventListener('click', toggleExportMenu);
-    exportHtml.addEventListener('click', () => exportChats('html'));
-    exportTxt.addEventListener('click', () => exportChats('text'));
-    gifBtn.addEventListener('click', toggleGifPicker);
-    logoutBtn.addEventListener('click', handleLogout);
+    if (sendBtn) sendBtn.addEventListener('click', sendMessage);
+    if (messageInput) messageInput.addEventListener('keypress', handleMessageKeypress);
+    if (searchBtn) searchBtn.addEventListener('click', toggleSearch);
+    if (closeSearch) closeSearch.addEventListener('click', toggleSearch);
+    if (searchInput) searchInput.addEventListener('input', handleSearch);
+    if (menuBtn) menuBtn.addEventListener('click', toggleExportMenu);
+    if (exportHtml) exportHtml.addEventListener('click', () => exportChats('html'));
+    if (exportTxt) exportTxt.addEventListener('click', () => exportChats('text'));
+    if (gifBtn) gifBtn.addEventListener('click', toggleGifPicker);
+    if (logoutBtn) logoutBtn.addEventListener('click', handleLogout);
     
     // Close menus when clicking outside
     document.addEventListener('click', function(e) {
-        if (!menuBtn.contains(e.target) && !exportMenu.contains(e.target)) {
+        if (menuBtn && exportMenu && !menuBtn.contains(e.target) && !exportMenu.contains(e.target)) {
             exportMenu.classList.remove('active');
         }
         
-        if (!gifBtn.contains(e.target) && !gifPicker.contains(e.target)) {
+        if (gifBtn && gifPicker && !gifBtn.contains(e.target) && !gifPicker.contains(e.target)) {
             gifPicker.classList.remove('active');
         }
     });
     
     // Auto-resize textarea
-    messageInput.addEventListener('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
+    if (messageInput) {
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight) + 'px';
+        });
+    }
 }
 
 // Update user info in UI
 function updateUserInfo() {
-    currentUserAvatar.src = users[currentUser].avatar;
-    currentUserName.textContent = users[currentUser].name;
+    if (currentUserAvatar) currentUserAvatar.src = users[currentUser].avatar;
+    if (currentUserName) currentUserName.textContent = users[currentUser].name;
 }
 
 // Handle login form submission
@@ -145,56 +199,31 @@ function handleLogin(e) {
             authToken: authToken
         }));
         
-        // Update UI with user info
-        updateUserInfo();
-        
-        // Show chat screen
-        loginScreen.style.display = 'none';
-        chatScreen.style.display = 'flex';
-        
-        // Load messages
-        loadMessages();
-        
-        // Start polling for new messages
-        startMessagePolling();
-        
-        // Request notification permission
-        requestNotificationPermission();
-        
-        // Show welcome notification
-        showNotification(`Welcome back, ${users[username].name}!`);
+        // Redirect to chat page
+        window.location.href = 'chat.html';
     } else {
         alert('Invalid username or password. Please try again.');
     }
 }
 
-// Generate GIF picker
-function generateGifPicker() {
-    gifPicker.innerHTML = '';
-    popularGifs.forEach(gifUrl => {
-        const gifElement = document.createElement('div');
-        gifElement.classList.add('gif-item');
-        gifElement.innerHTML = `<img src="${gifUrl}" alt="GIF">`;
-        gifElement.addEventListener('click', () => {
-            sendGifMessage(gifUrl);
-            gifPicker.classList.remove('active');
-        });
-        gifPicker.appendChild(gifElement);
-    });
-}
-
 // Show notification
 function showNotification(text) {
+    if (!notification || !notificationText) return;
+    
     notificationText.textContent = text;
     notification.classList.add('active');
     
     // Play notification sound
-    const audio = new Audio('data:audio/wav;base64,UklGRl4QAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YToQAACBgIF/gn6DgIR8hX2GfId6iHmJeot5jHeNeI54j3eQd5F2knaTdZV0lnOXc5hymXKacZtwnHCdb55un26gbKFroWqia6Jpo2ikZ6VmpmWnZadiqGGpYKpfql2qXKpaq1irVqtUq1OrUqtRq0+rTqtMq0urSatHq0arRKs=');
-    audio.play().catch(() => {});
+    if (notificationSound) {
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(e => {
+            console.log('Audio play failed:', e);
+        });
+    }
     
     // Browser notification
     if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification('Rinamil', { body: text });
+        new Notification('RinaMil', { body: text });
     }
     
     setTimeout(() => {
@@ -240,34 +269,65 @@ async function loadMessages() {
         });
         
         if (response.ok) {
-            const messages = await response.json();
+            const serverMessages = await response.json();
+            messages = serverMessages;
             renderMessages(messages);
+            
+            // Check for new messages to show notifications
+            checkForNewMessages(messages);
         } else {
-            console.error('Failed to load messages:', response.status);
-            // For demo purposes, show some sample messages if API fails
-            renderSampleMessages();
+            console.error('Failed to load messages from server:', response.status);
+            showNotification('Failed to load messages. Please check your connection.');
         }
     } catch (error) {
         console.error('Error loading messages:', error);
-        // For demo purposes, show some sample messages if API fails
-        renderSampleMessages();
+        showNotification('Failed to load messages. Please check your connection.');
+    }
+}
+
+// Check for new messages and show notifications
+function checkForNewMessages(messages) {
+    if (messages.length === 0) return;
+    
+    // Find the latest message
+    const latestMessage = messages.reduce((latest, message) => {
+        return message.timestamp > latest.timestamp ? message : latest;
+    }, messages[0]);
+    
+    // If this is a new message from the other user, show notification
+    if (latestMessage.sender === otherUser && latestMessage.timestamp > lastMessageTimestamp) {
+        // Update last message timestamp
+        lastMessageTimestamp = latestMessage.timestamp;
+        
+        // Show notification if not the initial load
+        if (lastMessageTimestamp !== 0) {
+            showNotification(`New message from ${users[otherUser].name}`);
+        }
     }
 }
 
 // Render messages
-function renderMessages(messages) {
+function renderMessages(messagesToRender) {
+    if (!chatContainer) return;
+    
+    // Store scroll position before rendering
+    const wasScrolledToBottom = isScrolledToBottom();
+    
     chatContainer.innerHTML = '';
     
     // Filter messages if search is active
-    const searchText = searchInput.value.toLowerCase();
+    const searchText = searchInput ? searchInput.value.toLowerCase() : '';
     if (searchText) {
-        messages = messages.filter(msg => {
+        messagesToRender = messagesToRender.filter(msg => {
+            // Skip GIF messages in search
+            if (msg.text.startsWith('GIF:')) return false;
+            
             const decryptedText = decryptMessage(msg.text);
             return decryptedText.toLowerCase().includes(searchText);
         });
     }
     
-    messages.forEach(msg => {
+    messagesToRender.forEach(msg => {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message');
         
@@ -298,11 +358,17 @@ function renderMessages(messages) {
         chatContainer.appendChild(messageElement);
     });
     
-    // Scroll to bottom
-    chatContainer.scrollTop = chatContainer.scrollHeight;
+    // Restore scroll position
+    if (wasScrolledToBottom) {
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
 }
 
-
+// Check if chat container is scrolled to bottom
+function isScrolledToBottom() {
+    if (!chatContainer) return false;
+    return chatContainer.scrollHeight - chatContainer.clientHeight <= chatContainer.scrollTop + 10;
+}
 
 // Send message
 async function sendMessage() {
@@ -343,38 +409,6 @@ async function sendMessage() {
     }
 }
 
-// Send GIF message
-async function sendGifMessage(gifUrl) {
-    const now = new Date();
-    
-    const message = {
-        sender: currentUser,
-        text: 'GIF:' + gifUrl,
-        timestamp: now.getTime()
-    };
-    
-    try {
-        const response = await fetch(`${API_BASE_URL}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${authToken}`
-            },
-            body: JSON.stringify(message)
-        });
-        
-        if (response.ok) {
-            loadMessages(); // Reload messages to include the new one
-        } else {
-            console.error('Failed to send GIF message:', response.status);
-            showNotification('Failed to send GIF. Please try again.');
-        }
-    } catch (error) {
-        console.error('Error sending GIF message:', error);
-        showNotification('Failed to send GIF. Please check your connection.');
-    }
-}
-
 // Handle message input keypress
 function handleMessageKeypress(e) {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -385,6 +419,7 @@ function handleMessageKeypress(e) {
 
 // Toggle search
 function toggleSearch() {
+    if (!searchContainer) return;
     searchContainer.classList.toggle('active');
     if (searchContainer.classList.contains('active')) {
         searchInput.focus();
@@ -401,65 +436,17 @@ function handleSearch() {
 
 // Toggle export menu
 function toggleExportMenu() {
+    if (!exportMenu) return;
     exportMenu.classList.toggle('active');
 }
 
 // Toggle GIF picker
 function toggleGifPicker() {
+    if (!gifPicker) return;
     gifPicker.classList.toggle('active');
 }
 
-// Export chats
-function exportChats(format) {
-    // For demo purposes, we'll use the sample messages
-    // In a real app, you would fetch the actual messages from the backend
-    const messages = JSON.parse(localStorage.getItem('rinamil_chat_messages')) || [];
-    
-    let content = '';
-    const date = new Date().toLocaleDateString().replace(/\//g, '-');
-    
-    if (format === 'html') {
-        content = `<!DOCTYPE html><html><head><title>Chat Export - ${date}</title><meta charset="UTF-8"></head><body>`;
-        content += `<h1>Rinamil Export - ${date}</h1>`;
-        
-        messages.forEach(msg => {
-            if (msg.text.startsWith('GIF:')) {
-                const gifUrl = msg.text.substring(4);
-                content += `<p><strong>${msg.sender} (${formatTime(new Date(msg.timestamp))}):</strong> <img src="${gifUrl}" alt="GIF" style="max-width: 200px;"></p>`;
-            } else {
-                const decryptedText = decryptMessage(msg.text);
-                content += `<p><strong>${msg.sender} (${formatTime(new Date(msg.timestamp))}):</strong> ${decryptedText}</p>`;
-            }
-        });
-        
-        content += `</body></html>`;
-    } else {
-        content = `Rinamil Chat Export - ${date}\n\n`;
-        
-        messages.forEach(msg => {
-            if (msg.text.startsWith('GIF:')) {
-                const gifUrl = msg.text.substring(4);
-                content += `${msg.sender} (${formatTime(new Date(msg.timestamp))}): [GIF] ${gifUrl}\n`;
-            } else {
-                const decryptedText = decryptMessage(msg.text);
-                content += `${msg.sender} (${formatTime(new Date(msg.timestamp))}): ${decryptedText}\n`;
-            }
-        });
-    }
-    
-    const blob = new Blob([content], { type: format === 'html' ? 'text/html' : 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `rinamil_chat_export_${date}.${format === 'html' ? 'html' : 'txt'}`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-    
-    showNotification(`Chats exported as ${format.toUpperCase()}`);
-    exportMenu.classList.remove('active');
-}
+
 
 // Start polling for new messages
 function startMessagePolling() {
@@ -498,21 +485,7 @@ function handleLogout() {
         // Clear local storage
         localStorage.removeItem('currentUser');
         
-        // Reset UI
-        messageInput.value = '';
-        chatContainer.innerHTML = '';
-        searchInput.value = '';
-        searchContainer.classList.remove('active');
-        
-        // Show login screen, hide chat screen
-        loginScreen.style.display = 'flex';
-        chatScreen.style.display = 'none';
-        
-        // Reset form fields
-        usernameInput.value = '';
-        passwordInput.value = '';
-        
-        // Show logout notification
-        showNotification('You have been logged out successfully');
+        // Redirect to login page
+        window.location.href = 'index.html';
     }
 }
