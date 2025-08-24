@@ -1,5 +1,32 @@
 // Backend API URL
 const API_BASE_URL = 'https://rinamil-5a961b6d4ed7.herokuapp.com';
+let usingBackend = false;
+
+// User credentials
+const users = {
+    'moham': { password: 'moham123', avatar: 'm.jpg', name: 'Moham' },
+    'rinu': { password: 'rinu123', avatar: 'r.jpg', name: 'Rinu' }
+};
+
+// Current user
+let currentUser = null;
+let otherUser = null;
+let authToken = null;
+let messagePollingInterval = null;
+let statusPollingInterval = null;
+let lastMessageTimestamp = 0;
+let messages = [];
+
+// Popular GIFs
+const popularGifs = [
+    'https://media.giphy.com/media/26uf758UnUIJTIEDq/giphy.gif',
+    'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
+    'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
+    'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
+    'https://media.giphy.com/media/3o7aD2d7hy9ktXNDP2/giphy.gif',
+    'https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif',
+    'https://media.giphy.com/media/l0HlG8vJXW0X5yX4s/giphy.gif'
+];
 
 // DOM Elements
 const loginScreen = document.getElementById('login-screen');
@@ -29,33 +56,6 @@ const gifPicker = document.getElementById('gif-picker');
 const logoutBtn = document.getElementById('logout-btn');
 const notificationSound = document.getElementById('notification-sound');
 const connectionStatus = document.getElementById('connection-status');
-
-// User credentials
-const users = {
-    'moham': { password: 'moham123', avatar: 'm.jpg', name: 'Moham' },
-    'rinu': { password: 'rinu123', avatar: 'r.jpg', name: 'Rinu' }
-};
-
-// Current user
-let currentUser = null;
-let otherUser = null;
-let authToken = null;
-let messagePollingInterval = null;
-let statusPollingInterval = null;
-let lastMessageTimestamp = 0;
-let messages = [];
-
-// Popular GIFs
-const popularGifs = [
-    'https://media.giphy.com/media/26uf758UnUIJTIEDq/giphy.gif',
-    'https://media.giphy.com/media/l3q2K5jinAlChoCLS/giphy.gif',
-    'https://media.giphy.com/media/3o7abKhOpu0NwenH3O/giphy.gif',
-    'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    'https://media.giphy.com/media/3o7aD2d7hy9ktXNDP2/giphy.gif',
-    'https://media.giphy.com/media/3o7TKwxYkeW0ZvTqsU/giphy.gif',
-    'https://media.giphy.com/media/3o7TKsQ8UQ4l4LhGz6/giphy.gif',
-    'https://media.giphy.com/media/l0HlG8vJXW0X5yX4s/giphy.gif'
-];
 
 // Initialize the application
 document.addEventListener('DOMContentLoaded', function() {
@@ -117,26 +117,44 @@ function setupChatPage() {
     
     // Test backend connection
     testBackendConnection();
+    
+    // Populate GIF picker
+    populateGifPicker();
 }
 
 // Test backend connection
 async function testBackendConnection() {
     try {
         connectionStatus.textContent = "Testing connection...";
-        const response = await fetch(`${API_BASE_URL}/`);
+        connectionStatus.style.display = "block";
+        
+        const response = await fetch(`${API_BASE_URL}/`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
         if (response.ok) {
             connectionStatus.textContent = "Connected to backend";
+            connectionStatus.style.backgroundColor = "rgba(34, 197, 94, 0.7)";
+            usingBackend = true;
+            
             setTimeout(() => {
                 connectionStatus.style.display = "none";
             }, 2000);
         } else {
-            connectionStatus.textContent = "Backend connection failed";
-            connectionStatus.style.backgroundColor = "rgba(220, 50, 50, 0.7)";
+            throw new Error('Backend not available');
         }
     } catch (error) {
         console.error("Backend connection failed:", error);
-        connectionStatus.textContent = "Backend connection failed";
-        connectionStatus.style.backgroundColor = "rgba(220, 50, 50, 0.7)";
+        connectionStatus.textContent = "Using local storage only";
+        connectionStatus.style.backgroundColor = "rgba(245, 158, 11, 0.7)";
+        usingBackend = false;
+        
+        setTimeout(() => {
+            connectionStatus.style.display = "none";
+        }, 2000);
     }
 }
 
@@ -259,29 +277,47 @@ function formatTime(date) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Load messages from backend
+// Load messages from backend or local storage
 async function loadMessages() {
     try {
-        const response = await fetch(`${API_BASE_URL}/messages`, {
-            headers: {
-                'Authorization': `Basic ${authToken}`
-            }
-        });
-        
-        if (response.ok) {
-            const serverMessages = await response.json();
-            messages = serverMessages;
-            renderMessages(messages);
+        if (usingBackend) {
+            const response = await fetch(`${API_BASE_URL}/messages`, {
+                headers: {
+                    'Authorization': `Basic ${authToken}`
+                }
+            });
             
-            // Check for new messages to show notifications
-            checkForNewMessages(messages);
+            if (response.ok) {
+                const serverMessages = await response.json();
+                messages = serverMessages;
+                // Save to localStorage as backup
+                localStorage.setItem('chatMessages', JSON.stringify(messages));
+            } else {
+                throw new Error('Failed to load messages from server');
+            }
         } else {
-            console.error('Failed to load messages from server:', response.status);
-            showNotification('Failed to load messages. Please check your connection.');
+            // Fallback to localStorage
+            const savedMessages = localStorage.getItem('chatMessages');
+            if (savedMessages) {
+                messages = JSON.parse(savedMessages);
+            }
         }
+        
+        renderMessages(messages);
+        
+        // Check for new messages to show notifications
+        checkForNewMessages(messages);
     } catch (error) {
         console.error('Error loading messages:', error);
-        showNotification('Failed to load messages. Please check your connection.');
+        
+        // Fallback to localStorage
+        const savedMessages = localStorage.getItem('chatMessages');
+        if (savedMessages) {
+            messages = JSON.parse(savedMessages);
+            renderMessages(messages);
+        }
+        
+        showNotification('Using offline mode. Messages stored locally.');
     }
 }
 
@@ -342,14 +378,14 @@ function renderMessages(messagesToRender) {
             messageElement.classList.add('gif-message');
             const gifUrl = msg.text.substring(4);
             messageElement.innerHTML = `
-                <div class="message-sender">${msg.sender === 'moham' ? 'Moham' : 'Rinu'}</div>
+                <div class="message-sender">${users[msg.sender].name}</div>
                 <img src="${gifUrl}" alt="GIF">
                 <div class="message-time">${formatTime(new Date(msg.timestamp))} <span class="message-status">${msg.status || '✓✓'}</span></div>
             `;
         } else {
             const decryptedText = decryptMessage(msg.text);
             messageElement.innerHTML = `
-                <div class="message-sender">${msg.sender === 'moham' ? 'Moham' : 'Rinu'}</div>
+                <div class="message-sender">${users[msg.sender].name}</div>
                 <div class="message-text">${decryptedText}</div>
                 <div class="message-time">${formatTime(new Date(msg.timestamp))} <span class="message-status">${msg.status || '✓✓'}</span></div>
             `;
@@ -382,30 +418,103 @@ async function sendMessage() {
     const message = {
         sender: currentUser,
         text: encryptedText,
-        timestamp: now.getTime()
+        timestamp: now.getTime(),
+        status: '✓✓' // Delivered status
     };
     
     try {
-        const response = await fetch(`${API_BASE_URL}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Basic ${authToken}`
-            },
-            body: JSON.stringify(message)
-        });
-        
-        if (response.ok) {
-            messageInput.value = '';
-            messageInput.style.height = 'auto';
-            loadMessages(); // Reload messages to include the new one
-        } else {
-            console.error('Failed to send message:', response.status);
-            showNotification('Failed to send message. Please try again.');
+        if (usingBackend) {
+            const response = await fetch(`${API_BASE_URL}/messages`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Basic ${authToken}`
+                },
+                body: JSON.stringify(message)
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to send message to server');
+            }
         }
+        
+        // Add message to local array
+        messages.push(message);
+        
+        // Save to localStorage
+        localStorage.setItem('chatMessages', JSON.stringify(messages));
+        
+        // Clear input and reset height
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+        
+        // Render messages
+        renderMessages(messages);
+        
+        // Simulate response after a delay
+        simulateResponse();
+        
     } catch (error) {
         console.error('Error sending message:', error);
-        showNotification('Failed to send message. Please check your connection.');
+        
+        // Fallback to local storage
+        messages.push(message);
+        localStorage.setItem('chatMessages', JSON.stringify(messages));
+        
+        // Clear input and reset height
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+        
+        // Render messages
+        renderMessages(messages);
+        
+        // Simulate response after a delay
+        simulateResponse();
+        
+        showNotification('Message saved locally (offline mode)');
+    }
+}
+
+// Simulate response from other user
+function simulateResponse() {
+    // Only simulate if the other user is Rinu
+    if (otherUser === 'rinu') {
+        setTimeout(() => {
+            const responses = [
+                "Hey there! How are you?",
+                "I'm doing great! Thanks for asking.",
+                "What have you been up to?",
+                "That sounds interesting!",
+                "I miss you too!",
+                "Can't wait to see you again!",
+                "Thanks for the message!",
+                "You're the best! 💖"
+            ];
+            
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            const encryptedText = encryptMessage(randomResponse);
+            const now = new Date();
+            
+            const message = {
+                sender: otherUser,
+                text: encryptedText,
+                timestamp: now.getTime(),
+                status: '✓✓✓' // Read status
+            };
+            
+            // Add message to array
+            messages.push(message);
+            
+            // Save to localStorage
+            localStorage.setItem('chatMessages', JSON.stringify(messages));
+            
+            // Render messages
+            renderMessages(messages);
+            
+            // Show notification
+            showNotification(`New message from ${users[otherUser].name}`);
+            
+        }, 2000 + Math.random() * 5000); // Random delay between 2-7 seconds
     }
 }
 
@@ -425,13 +534,13 @@ function toggleSearch() {
         searchInput.focus();
     } else {
         searchInput.value = '';
-        loadMessages();
+        renderMessages(messages);
     }
 }
 
 // Handle search
 function handleSearch() {
-    loadMessages();
+    renderMessages(messages);
 }
 
 // Toggle export menu
@@ -446,7 +555,183 @@ function toggleGifPicker() {
     gifPicker.classList.toggle('active');
 }
 
+// Populate GIF picker
+function populateGifPicker() {
+    if (!gifPicker) return;
+    
+    gifPicker.innerHTML = '';
+    
+    popularGifs.forEach(gifUrl => {
+        const gifItem = document.createElement('div');
+        gifItem.classList.add('gif-item');
+        gifItem.innerHTML = `<img src="${gifUrl}" alt="GIF">`;
+        gifItem.addEventListener('click', () => sendGif(gifUrl));
+        gifPicker.appendChild(gifItem);
+    });
+}
 
+// Send GIF
+function sendGif(gifUrl) {
+    const now = new Date();
+    
+    const message = {
+        sender: currentUser,
+        text: `GIF:${gifUrl}`,
+        timestamp: now.getTime(),
+        status: '✓✓' // Delivered status
+    };
+    
+    // Add message to array
+    messages.push(message);
+    
+    // Save to localStorage
+    localStorage.setItem('chatMessages', JSON.stringify(messages));
+    
+    // Render messages
+    renderMessages(messages);
+    
+    // Hide GIF picker
+    gifPicker.classList.remove('active');
+    
+    // Try to send to backend
+    if (usingBackend) {
+        fetch(`${API_BASE_URL}/messages`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Basic ${authToken}`
+            },
+            body: JSON.stringify(message)
+        }).catch(error => {
+            console.error('Failed to send GIF to server:', error);
+        });
+    }
+    
+    // Simulate response after a delay
+    simulateGifResponse();
+}
+
+// Simulate GIF response from other user
+function simulateGifResponse() {
+    // Only simulate if the other user is Rinu
+    if (otherUser === 'rinu') {
+        setTimeout(() => {
+            const responseGifs = [
+                'https://media.giphy.com/media/3o7aTskHEUdgCQAXde/giphy.gif',
+                'https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif',
+                'https://media.giphy.com/media/3o7aTskHEUdgCQAXde/giphy.gif',
+                'https://media.giphy.com/media/3o7abAHdYvZdBNnGZq/giphy.gif',
+                'https://media.giphy.com/media/3o7TKtbdpC5MnaYz8A/giphy.gif'
+            ];
+            
+            const randomGif = responseGifs[Math.floor(Math.random() * responseGifs.length)];
+            const now = new Date();
+            
+            const message = {
+                sender: otherUser,
+                text: `GIF:${randomGif}`,
+                timestamp: now.getTime(),
+                status: '✓✓✓' // Read status
+            };
+            
+            // Add message to array
+            messages.push(message);
+            
+            // Save to localStorage
+            localStorage.setItem('chatMessages', JSON.stringify(messages));
+            
+            // Render messages
+            renderMessages(messages);
+            
+            // Show notification
+            showNotification(`${users[otherUser].name} sent a GIF`);
+            
+            // Try to send to backend
+            if (usingBackend) {
+                fetch(`${API_BASE_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${authToken}`
+                    },
+                    body: JSON.stringify(message)
+                }).catch(error => {
+                    console.error('Failed to send GIF response to server:', error);
+                });
+            }
+            
+        }, 3000 + Math.random() * 4000); // Random delay between 3-7 seconds
+    }
+}
+
+// Export chats
+function exportChats(format) {
+    let exportData = '';
+    
+    if (format === 'html') {
+        exportData = '<!DOCTYPE html><html><head><title>Chat Export</title><style>body{font-family: Arial, sans-serif; margin: 20px; background: #0f172a; color: #f1f5f9;} .message{margin-bottom: 15px; padding: 10px; border-radius: 10px; max-width: 70%;} .outgoing{background: linear-gradient(135deg, #6e8efb, #a777e3); margin-left: auto; color: white; text-align: right;} .incoming{background: #334155; color: #f1f5f9;} .time{font-size: 12px; color: #94a3b8; margin-top: 5px;} .sender{font-weight: bold; margin-bottom: 5px;} .gif-container{max-width: 250px;}</style></head><body>';
+        exportData += `<h1 style="color: #f1f5f9;">Chat between ${users[currentUser].name} and ${users[otherUser].name}</h1>`;
+        
+        messages.forEach(msg => {
+            const time = formatTime(new Date(msg.timestamp));
+            const isOutgoing = msg.sender === currentUser;
+            
+            if (msg.text.startsWith('GIF:')) {
+                const gifUrl = msg.text.substring(4);
+                exportData += `
+                    <div class="message ${isOutgoing ? 'outgoing' : 'incoming'}">
+                        <div class="sender">${users[msg.sender].name}</div>
+                        <div class="gif-container">
+                            <img src="${gifUrl}" alt="GIF" style="max-width: 100%; border-radius: 8px;">
+                        </div>
+                        <div class="time">${time}</div>
+                    </div>
+                `;
+            } else {
+                const decryptedText = decryptMessage(msg.text);
+                exportData += `
+                    <div class="message ${isOutgoing ? 'outgoing' : 'incoming'}">
+                        <div class="sender">${users[msg.sender].name}</div>
+                        <div class="text">${decryptedText}</div>
+                        <div class="time">${time}</div>
+                    </div>
+                `;
+            }
+        });
+        
+        exportData += '</body></html>';
+    } else if (format === 'text') {
+        exportData = `Chat between ${users[currentUser].name} and ${users[otherUser].name}\n\n`;
+        
+        messages.forEach(msg => {
+            const time = formatTime(new Date(msg.timestamp));
+            const sender = users[msg.sender].name;
+            
+            if (msg.text.startsWith('GIF:')) {
+                exportData += `[${time}] ${sender}: [Sent a GIF]\n`;
+            } else {
+                const decryptedText = decryptMessage(msg.text);
+                exportData += `[${time}] ${sender}: ${decryptedText}\n`;
+            }
+        });
+    }
+    
+    // Create download link
+    const blob = new Blob([exportData], { type: format === 'html' ? 'text/html' : 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `rinamil_chat_${new Date().toISOString().split('T')[0]}.${format === 'html' ? 'html' : 'txt'}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    // Hide export menu
+    exportMenu.classList.remove('active');
+    
+    showNotification(`Chat exported as ${format.toUpperCase()}`);
+}
 
 // Start polling for new messages
 function startMessagePolling() {
@@ -463,14 +748,16 @@ function startMessagePolling() {
     statusPollingInterval = setInterval(() => {
         const isOnline = Math.random() > 0.2; // 80% chance online
         
-        if (isOnline) {
-            statusIndicator.classList.remove('offline');
-            statusIndicator.classList.add('online');
-            statusText.textContent = 'Online';
-        } else {
-            statusIndicator.classList.remove('online');
-            statusIndicator.classList.add('offline');
-            statusText.textContent = 'Offline';
+        if (statusIndicator && statusText) {
+            if (isOnline) {
+                statusIndicator.classList.remove('offline');
+                statusIndicator.classList.add('online');
+                statusText.textContent = 'Online';
+            } else {
+                statusIndicator.classList.remove('online');
+                statusIndicator.classList.add('offline');
+                statusText.textContent = 'Offline';
+            }
         }
     }, 10000);
 }
@@ -488,4 +775,151 @@ function handleLogout() {
         // Redirect to login page
         window.location.href = 'index.html';
     }
+}
+
+// Handle file attachment
+if (document.getElementById('attachment-btn')) {
+    document.getElementById('attachment-btn').addEventListener('click', function() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = '*/*';
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                if (file.size > 10 * 1024 * 1024) { // 10MB limit
+                    alert('File size too large. Maximum size is 10MB.');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const now = new Date();
+                    const message = {
+                        sender: currentUser,
+                        text: `FILE:${file.name}:${event.target.result}`,
+                        timestamp: now.getTime(),
+                        status: '✓✓',
+                        file: {
+                            name: file.name,
+                            type: file.type,
+                            size: file.size,
+                            data: event.target.result
+                        }
+                    };
+                    
+                    // Add message to array
+                    messages.push(message);
+                    
+                    // Save to localStorage
+                    localStorage.setItem('chatMessages', JSON.stringify(messages));
+                    
+                    // Render messages
+                    renderMessages(messages);
+                    
+                    // Try to send to backend
+                    if (usingBackend) {
+                        fetch(`${API_BASE_URL}/messages`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Basic ${authToken}`
+                            },
+                            body: JSON.stringify(message)
+                        }).catch(error => {
+                            console.error('Failed to send file to server:', error);
+                        });
+                    }
+                    
+                    showNotification('File sent');
+                    
+                    // Simulate file response
+                    simulateFileResponse();
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        fileInput.click();
+    });
+}
+
+// Simulate file response from other user
+function simulateFileResponse() {
+    // Only simulate if the other user is Rinu
+    if (otherUser === 'rinu') {
+        setTimeout(() => {
+            const responses = [
+                "Thanks for the file!",
+                "I got your file, thank you!",
+                "This file is great, thanks!",
+                "I'll check out this file later.",
+                "Appreciate you sending this over!"
+            ];
+            
+            const randomResponse = responses[Math.floor(Math.random() * responses.length)];
+            const encryptedText = encryptMessage(randomResponse);
+            const now = new Date();
+            
+            const message = {
+                sender: otherUser,
+                text: encryptedText,
+                timestamp: now.getTime(),
+                status: '✓✓✓' // Read status
+            };
+            
+            // Add message to array
+            messages.push(message);
+            
+            // Save to localStorage
+            localStorage.setItem('chatMessages', JSON.stringify(messages));
+            
+            // Render messages
+            renderMessages(messages);
+            
+            // Try to send to backend
+            if (usingBackend) {
+                fetch(`${API_BASE_URL}/messages`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Basic ${authToken}`
+                    },
+                    body: JSON.stringify(message)
+                }).catch(error => {
+                    console.error('Failed to send response to server:', error);
+                });
+            }
+            
+            // Show notification
+            showNotification(`New message from ${users[otherUser].name}`);
+            
+        }, 3000 + Math.random() * 4000); // Random delay between 3-7 seconds
+    }
+}
+
+// Handle profile picture editing (if elements exist)
+if (document.getElementById('edit-avatar-btn')) {
+    document.getElementById('edit-avatar-btn').addEventListener('click', function() {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file && file.type.match('image.*')) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    // Update avatar preview
+                    if (currentUserAvatar) {
+                        currentUserAvatar.src = event.target.result;
+                    }
+                    
+                    // Save to localStorage
+                    localStorage.setItem(`${currentUser}-avatar`, event.target.result);
+                    
+                    showNotification('Profile picture updated');
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        fileInput.click();
+    });
 }
