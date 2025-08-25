@@ -230,32 +230,25 @@ function formatTime(date) {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
-// Load messages from backend
 async function loadMessages() {
     try {
-        const response = await fetch(`${API_BASE_URL}/messages`, {
-            headers: {
-                'Authorization': `Basic ${authToken}`
-            }
-        });
-        
-        if (response.ok) {
-            const messages = await response.json();
-            renderMessages(messages);
-        } else {
-            console.error('Failed to load messages:', response.status);
-            // For demo purposes, show some sample messages if API fails
-            renderSampleMessages();
-        }
+        // ... existing code ...
     } catch (error) {
         console.log('Using localStorage fallback for messages');
-        // Just render existing messages from localStorage
+        if (error.message.includes('Quota exceeded')) {
+            showNotification('Firebase quota exceeded. Using local storage.');
+            // Disable further Firebase attempts for a while
+            backendAvailable = false;
+            canReadFromBackend = false;
+            canWriteToBackend = false;
+        }
+        // Load from localStorage
         const savedMessages = localStorage.getItem('chatMessages');
         if (savedMessages) {
-          messages = JSON.parse(savedMessages);
-          renderMessages(messages);
+            messages = JSON.parse(savedMessages);
+            renderMessages(messages);
         }
-      }
+    }
 }
 
 // Render messages
@@ -470,10 +463,10 @@ function startMessagePolling() {
     // Clear any existing interval
     if (messagePollingInterval) clearInterval(messagePollingInterval);
     
-    // Poll for new messages every 3 seconds
-    messagePollingInterval = setInterval(() => {
-        loadMessages();
-    }, 3000);
+// Change from 3000ms to 30000ms (30 seconds)
+messagePollingInterval = setInterval(() => {
+    loadMessages();
+}, 30000); // 30 seconds instead of 3
     
     // Simulate online status changes
     if (statusPollingInterval) clearInterval(statusPollingInterval);
