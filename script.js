@@ -248,10 +248,14 @@ async function loadMessages() {
             renderSampleMessages();
         }
     } catch (error) {
-        console.error('Error loading messages:', error);
-        // For demo purposes, show some sample messages if API fails
-        renderSampleMessages();
-    }
+        console.log('Using localStorage fallback for messages');
+        // Just render existing messages from localStorage
+        const savedMessages = localStorage.getItem('chatMessages');
+        if (savedMessages) {
+          messages = JSON.parse(savedMessages);
+          renderMessages(messages);
+        }
+      }
 }
 
 // Render messages
