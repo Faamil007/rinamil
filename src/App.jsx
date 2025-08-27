@@ -5,8 +5,8 @@ import Chat from './components/Chat';
 import './App.css';
 
 // Initialize Supabase client
-const supabaseUrl = 'YOUR_SUPABASE_URL';
-const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+const supabaseUrl = 'https://yaltykomnxhonobpxuhq.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhbHR5a29tbnhob25vYnB4dWhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYzMzA0NzYsImV4cCI6MjA3MTkwNjQ3Nn0.R-AHIWlMZeoA-8W3TkxpOog4PYkyQloH0RTuVaXzWxk';
 export const supabase = createClient(supabaseUrl, supabaseKey); // ADD 'export' HERE
 
 function App() {
