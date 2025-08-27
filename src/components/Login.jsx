@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 
 const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState(''); // Change from email to username
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -13,7 +12,7 @@ const Login = ({ onLogin }) => {
     setError('');
 
     try {
-      await onLogin(email, password);
+      await onLogin(username, password); // Pass username instead of email
     } catch (err) {
       setError('Login failed. Please check your credentials.');
     } finally {
@@ -27,12 +26,12 @@ const Login = ({ onLogin }) => {
         <h2>Private Chat Login</h2>
         <form onSubmit={handleSubmit}>
           <div className="input-group">
-            <label htmlFor="email">Email</label>
+            <label htmlFor="username">Username</label> {/* Change from email to username */}
             <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              type="text" // Change from email to text
+              id="username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               required
             />
           </div>
