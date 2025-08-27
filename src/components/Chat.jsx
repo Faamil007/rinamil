@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { databases, client, DB_ID, MESSAGES_ID, PRESENCE_ID } from '../App';
-import { Query } from 'appwrite';
+import { supabase } from '../App.jsx';
 import MessageList from './MessageList';
 import Composer from './Composer';
 import TypingIndicator from './TypingIndicator';
@@ -9,79 +8,86 @@ import PresenceIndicator from './PresenceIndicator';
 const Chat = ({ user, roomId, onLogout }) => {
   const [messages, setMessages] = useState([]);
   const [otherUser, setOtherUser] = useState(null);
-  const [isTyping, setIsTyping] = useState(false);
-  const [presence, setPresence] = useState({});
   const realtimeSubscription = useRef(null);
 
   useEffect(() => {
     if (roomId) {
       loadMessages();
       subscribeToRealtime();
-      updatePresence();
       loadOtherUser();
+      updatePresence();
     }
 
     return () => {
       if (realtimeSubscription.current) {
-        realtimeSubscription.current();
+        supabase.removeChannel(realtimeSubscription.current);
       }
     };
   }, [roomId]);
 
   const loadMessages = async () => {
     try {
-      const response = await databases.listDocuments(DB_ID, MESSAGES_ID, [
-        Query.equal('roomId', roomId),
-        Query.orderAsc('createdAt')
-      ]);
-      setMessages(response.documents);
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('room_id', roomId)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setMessages(data || []);
     } catch (error) {
       console.error('Error loading messages:', error);
     }
   };
 
   const subscribeToRealtime = () => {
-    realtimeSubscription.current = client.subscribe(
-      `databases.${DB_ID}.collections.${MESSAGES_ID}.documents`,
-      (response) => {
-        if (response.events.includes('databases.*.collections.*.documents.*.create')) {
-          const newMessage = response.payload;
-          if (newMessage.roomId === roomId) {
-            setMessages(prev => [...prev, newMessage]);
-          }
+    realtimeSubscription.current = supabase
+      .channel('messages-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          setMessages(prev => [...prev, payload.new]);
         }
-      }
-    );
+      )
+      .subscribe();
   };
 
   const updatePresence = async () => {
     try {
-      await databases.updateDocument(DB_ID, PRESENCE_ID, user.$id, {
-        userId: user.$id,
-        roomId,
-        lastSeenAt: Math.floor(Date.now() / 1000),
-        typing: false
-      });
+      const { error } = await supabase
+        .from('presence')
+        .upsert({
+          user_id: user.id,
+          room_id: roomId,
+          last_seen_at: new Date().toISOString(),
+          typing: false,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,room_id' });
+
+      if (error) throw error;
     } catch (error) {
-      await databases.createDocument(DB_ID, PRESENCE_ID, user.$id, {
-        userId: user.$id,
-        roomId,
-        lastSeenAt: Math.floor(Date.now() / 1000),
-        typing: false
-      });
+      console.error('Error updating presence:', error);
     }
   };
 
   const loadOtherUser = async () => {
     try {
-      const members = await databases.listDocuments(DB_ID, 'members', [
-        Query.equal('roomId', roomId),
-        Query.notEqual('userId', user.$id)
-      ]);
-      
-      if (members.documents.length > 0) {
-        const otherUserId = members.documents[0].userId;
-        setOtherUser({ $id: otherUserId, name: otherUserId === 'USER1_ID' ? 'Rina' : 'Faamil' });
+      const { data, error } = await supabase
+        .from('room_members')
+        .select('user_id')
+        .eq('room_id', roomId)
+        .neq('user_id', user.id)
+        .single();
+
+      if (data) {
+        // In a real app, you'd fetch user details from a users table
+        setOtherUser({ id: data.user_id, name: data.user_id === 'USER1_ID' ? 'Rina' : 'Faamil' });
       }
     } catch (error) {
       console.error('Error loading other user:', error);
@@ -90,13 +96,17 @@ const Chat = ({ user, roomId, onLogout }) => {
 
   const handleSendMessage = async (text) => {
     try {
-      await databases.createDocument(DB_ID, MESSAGES_ID, 'unique()', {
-        roomId,
-        senderId: user.$id,
-        type: 'text',
-        text,
-        createdAt: Math.floor(Date.now() / 1000)
-      });
+      const { error } = await supabase
+        .from('messages')
+        .insert({
+          room_id: roomId,
+          sender_id: user.id,
+          type: 'text',
+          text: text,
+          created_at: new Date().toISOString()
+        });
+
+      if (error) throw error;
     } catch (error) {
       console.error('Error sending message:', error);
     }
@@ -104,10 +114,17 @@ const Chat = ({ user, roomId, onLogout }) => {
 
   const handleTyping = async (isTyping) => {
     try {
-      await databases.updateDocument(DB_ID, PRESENCE_ID, user.$id, {
-        typing: isTyping,
-        lastSeenAt: Math.floor(Date.now() / 1000)
-      });
+      const { error } = await supabase
+        .from('presence')
+        .update({
+          typing: isTyping,
+          last_seen_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', user.id)
+        .eq('room_id', roomId);
+
+      if (error) throw error;
     } catch (error) {
       console.error('Error updating typing status:', error);
     }
@@ -120,7 +137,7 @@ const Chat = ({ user, roomId, onLogout }) => {
           <h3>{otherUser ? otherUser.name : 'Chat'}</h3>
           <PresenceIndicator 
             roomId={roomId} 
-            userId={otherUser?.$id} 
+            userId={otherUser?.id} 
             currentUser={user} 
           />
         </div>
@@ -137,7 +154,6 @@ const Chat = ({ user, roomId, onLogout }) => {
       <TypingIndicator 
         roomId={roomId} 
         currentUser={user} 
-        onTypingChange={setIsTyping} 
       />
       
       <Composer 

@@ -1,25 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Client, Account, Databases, Query } from 'appwrite';
+import { createClient } from '@supabase/supabase-js';
 import Login from './components/Login';
 import Chat from './components/Chat';
 import './App.css';
 
-// Initialize Appwrite client
-const client = new Client()
-  .setEndpoint('https://fra.cloud.appwrite.io/v1') // Replace with your endpoint
-  .setProject('68ae28cb000b9e55f763'); // Replace with your project ID
-
-export const account = new Account(client);
-export const databases = new Databases(client);
-// Realtime is accessed differently in newer Appwrite versions
-export { client }; // Export client to use for realtime subscriptions
-
-// Collection and database IDs (replace with your actual IDs)
-export const DB_ID = 'chat_db';
-export const MESSAGES_ID = 'messages';
-export const MEMBERS_ID = 'members';
-export const PRESENCE_ID = 'presence';
-export const PUSH_SUBS_ID = 'push_subscriptions';
+// Initialize Supabase client
+const supabaseUrl = 'YOUR_SUPABASE_URL';
+const supabaseKey = 'YOUR_SUPABASE_ANON_KEY';
+export const supabase = createClient(supabaseUrl, supabaseKey); // ADD 'export' HERE
 
 function App() {
   const [user, setUser] = useState(null);
@@ -29,16 +17,30 @@ function App() {
   useEffect(() => {
     // Check if user is already logged in
     checkAuthStatus();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          setUser(session.user);
+          getRoomForUser(session.user.id);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setRoomId(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
   const checkAuthStatus = async () => {
     try {
-      const userData = await account.get();
-      setUser(userData);
-      
-      // Get the user's room
-      const room = await getRoomForUser(userData.$id);
-      setRoomId(room?.roomId || null);
+      const { data: { user: userData } } = await supabase.auth.getUser();
+      if (userData) {
+        setUser(userData);
+        getRoomForUser(userData.id);
+      }
     } catch (error) {
       console.log('User not authenticated');
     } finally {
@@ -48,28 +50,31 @@ function App() {
 
   const getRoomForUser = async (userId) => {
     try {
-      const response = await databases.listDocuments(DB_ID, MEMBERS_ID, [
-        Query.equal('userId', userId)
-      ]);
-      return response.documents[0] || null;
+      const { data, error } = await supabase
+        .from('room_members')
+        .select('room_id')
+        .eq('user_id', userId)
+        .single();
+
+      if (data) {
+        setRoomId(data.room_id);
+      }
     } catch (error) {
       console.error('Error fetching room:', error);
-      return null;
     }
   };
 
   const handleLogin = async (email, password) => {
     try {
-      // Create session
-      await account.createEmailSession(email, password);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
       
-      // Get user data
-      const userData = await account.get();
-      setUser(userData);
-      
-      // Get the user's room
-      const room = await getRoomForUser(userData.$id);
-      setRoomId(room?.roomId || null);
+      setUser(data.user);
+      getRoomForUser(data.user.id);
     } catch (error) {
       console.error('Login failed:', error);
       throw error;
@@ -78,7 +83,7 @@ function App() {
 
   const handleLogout = async () => {
     try {
-      await account.deleteSession('current');
+      await supabase.auth.signOut();
       setUser(null);
       setRoomId(null);
     } catch (error) {

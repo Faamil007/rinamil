@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { databases, client, DB_ID, PRESENCE_ID } from '../App';
+import { supabase } from '../App.jsx';
 
 const PresenceIndicator = ({ roomId, userId, currentUser }) => {
   const [presence, setPresence] = useState(null);
@@ -13,34 +13,50 @@ const PresenceIndicator = ({ roomId, userId, currentUser }) => {
 
   const loadPresence = async () => {
     try {
-      const userPresence = await databases.getDocument(DB_ID, PRESENCE_ID, userId);
-      setPresence(userPresence);
+      const { data, error } = await supabase
+        .from('presence')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('room_id', roomId)
+        .single();
+
+      if (data) {
+        setPresence(data);
+      }
     } catch (error) {
       console.error('Error loading presence:', error);
     }
   };
 
   const subscribeToPresence = () => {
-    client.subscribe(
-      `databases.${DB_ID}.collections.${PRESENCE_ID}.documents`,
-      (response) => {
-        if (response.payload.userId === userId) {
-          setPresence(response.payload);
+    supabase
+      .channel('presence-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'presence',
+          filter: `user_id=eq.${userId},room_id=eq.${roomId}`
+        },
+        (payload) => {
+          setPresence(payload.new);
         }
-      }
-    );
+      )
+      .subscribe();
   };
 
   const getStatus = () => {
     if (!presence) return 'Offline';
     
-    const now = Math.floor(Date.now() / 1000);
-    const lastSeen = presence.lastSeenAt;
+    const lastSeen = new Date(presence.last_seen_at);
+    const now = new Date();
+    const diffMinutes = Math.floor((now - lastSeen) / 60000);
     
-    if (now - lastSeen < 60) return 'Online';
-    if (now - lastSeen < 300) return 'Recently online';
+    if (diffMinutes < 1) return 'Online';
+    if (diffMinutes < 5) return 'Recently online';
     
-    return `Last seen at ${new Date(lastSeen * 1000).toLocaleTimeString()}`;
+    return `Last seen at ${lastSeen.toLocaleTimeString()}`;
   };
 
   return (

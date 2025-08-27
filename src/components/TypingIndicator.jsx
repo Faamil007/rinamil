@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { client, DB_ID, PRESENCE_ID } from '../App';
+import { supabase } from '../App.jsx';
 
-const TypingIndicator = ({ roomId, currentUser, onTypingChange }) => {
+const TypingIndicator = ({ roomId, currentUser }) => {
   const [typingUsers, setTypingUsers] = useState([]);
   const realtimeSubscription = useRef(null);
 
@@ -12,27 +12,34 @@ const TypingIndicator = ({ roomId, currentUser, onTypingChange }) => {
 
     return () => {
       if (realtimeSubscription.current) {
-        realtimeSubscription.current();
+        supabase.removeChannel(realtimeSubscription.current);
       }
     };
   }, [roomId]);
 
   const subscribeToTyping = () => {
-    realtimeSubscription.current = client.subscribe(
-      `databases.${DB_ID}.collections.${PRESENCE_ID}.documents`,
-      (response) => {
-        if (response.events.includes('databases.*.collections.*.documents.*.update')) {
-          const presence = response.payload;
-          if (presence.roomId === roomId && presence.userId !== currentUser.$id) {
+    realtimeSubscription.current = supabase
+      .channel('typing-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'presence',
+          filter: `room_id=eq.${roomId}`
+        },
+        (payload) => {
+          const presence = payload.new;
+          if (presence.user_id !== currentUser.id) {
             if (presence.typing) {
-              setTypingUsers(prev => [...prev.filter(id => id !== presence.userId), presence.userId]);
+              setTypingUsers(prev => [...prev.filter(id => id !== presence.user_id), presence.user_id]);
             } else {
-              setTypingUsers(prev => prev.filter(id => id !== presence.userId));
+              setTypingUsers(prev => prev.filter(id => id !== presence.user_id));
             }
           }
         }
-      }
-    );
+      )
+      .subscribe();
   };
 
   if (typingUsers.length === 0) {
