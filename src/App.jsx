@@ -67,29 +67,32 @@ function App() {
   };
 
   // In App.jsx, modify the handleLogin function:
-const handleLogin = async (username, password) => {
-  try {
-    // Treat username as email by adding a domain
-    const email = `${username}@yourdomain.com`; // Or use a fake domain
-    
-    const { data, error: loginError } = await supabase.auth.signInWithPassword({
-      email, // Use the constructed email
-      password,
-    });
-
-    if (loginError) {
-      console.error('Login error:', loginError);
-      setError(loginError.message);
-      throw loginError;
+  const handleLogin = async (username, password) => {
+    try {
+      console.log('Trying to login with:', username, password); // Debug log
+      
+      // Convert username to email format
+      const email = `${username}@chat.local`;
+      console.log('Converted email:', email); // Debug log
+      
+      const { data, error: loginError } = await supabase.auth.signInWithPassword({
+        email, // Use the constructed email
+        password,
+      });
+  
+      if (loginError) {
+        console.error('Login error details:', loginError); // More detailed error
+        throw loginError;
+      }
+      
+      console.log('Login successful!', data.user); // Debug log
+      setUser(data.user);
+      getRoomForUser(data.user.id);
+    } catch (error) {
+      console.error('Login failed:', error);
+      throw error;
     }
-    
-    setUser(data.user);
-    getRoomForUser(data.user.id);
-  } catch (error) {
-    console.error('Login failed:', error);
-    throw error;
-  }
-};
+  };
 
   const handleLogout = async () => {
     try {
