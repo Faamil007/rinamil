@@ -66,6 +66,51 @@ function App() {
     }
   };
 
+  // Add this function to your App.jsx
+const handleRegister = async (username, password) => {
+  try {
+    console.log('Registering user:', username);
+    
+    // Convert username to email format
+    const email = `${username}@chat.local`;
+    
+    // Register the user with Supabase Auth
+    const { data, error: signUpError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        // Disable email confirmation
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
+    });
+
+    if (signUpError) {
+      console.error('Registration error:', signUpError);
+      throw signUpError;
+    }
+
+    console.log('Registration successful!', data);
+    
+    // Auto-login after registration
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError) {
+      console.error('Auto-login error:', loginError);
+      throw loginError;
+    }
+
+    setUser(loginData.user);
+    return { success: true, message: 'Registration successful!' };
+    
+  } catch (error) {
+    console.error('Registration failed:', error);
+    throw error;
+  }
+};
+
   // In App.jsx, modify the handleLogin function:
   const handleLogin = async (username, password) => {
     try {
@@ -92,6 +137,21 @@ function App() {
       console.error('Login failed:', error);
       throw error;
     }
+
+    // In your App.jsx render method
+return (
+  <div className="app">
+    {user ? (
+      <Chat 
+        user={user} 
+        roomId={roomId} 
+        onLogout={handleLogout} 
+      />
+    ) : (
+      <Login onLogin={handleLogin} onRegister={handleRegister} />
+    )}
+  </div>
+);
   };
 
   const handleLogout = async () => {
@@ -122,5 +182,6 @@ function App() {
     </div>
   );
 }
+
 
 export default App;

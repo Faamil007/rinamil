@@ -221,3 +221,22 @@
     font-size: 0.8rem;
     color: #666;
   }
+
+  /* Add to your App.css */
+.auth-toggle {
+  margin-top: 1rem;
+  text-align: center;
+}
+
+.link-button {
+  background: none;
+  border: none;
+  color: #007bff;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+
+.link-button:hover {
+  color: #0056b3;
+}
