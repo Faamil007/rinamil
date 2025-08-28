@@ -13,6 +13,8 @@ function App() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [roomId, setRoomId] = useState(null);
+  const [error, setError] = useState(null); // Add this line
+
 
   useEffect(() => {
     // Check if user is already logged in

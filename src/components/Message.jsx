@@ -2,7 +2,7 @@ import React from 'react';
 
 const Message = ({ message, isOwn }) => {
   const formatTime = (timestamp) => {
-    return new Date(timestamp * 1000).toLocaleTimeString([], { 
+    return new Date(timestamp).toLocaleTimeString([], { 
       hour: '2-digit', 
       minute: '2-digit' 
     });
@@ -13,7 +13,7 @@ const Message = ({ message, isOwn }) => {
       <div className="message-content">
         <p>{message.text}</p>
         <span className="message-time">
-          {formatTime(message.createdAt)}
+          {formatTime(message.created_at)}
         </span>
       </div>
     </div>
