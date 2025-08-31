@@ -5,7 +5,7 @@ import Composer from './Composer';
 import TypingIndicator from './TypingIndicator';
 import PresenceIndicator from './PresenceIndicator';
 
-const Chat = ({ user, roomId, onLogout }) => {
+const Chat = ({ user, roomId, onLogout, onBack }) => {
   const [messages, setMessages] = useState([]);
   const [otherUser, setOtherUser] = useState(null);
   const [chatPartner, setChatPartner] = useState(null);
@@ -28,40 +28,37 @@ const Chat = ({ user, roomId, onLogout }) => {
 
   const loadChatPartner = async () => {
     try {
-      // Get ALL users in this room (not just the other one)
-      const { data: roomMembers, error } = await supabase
+      // Get ALL users in the room
+      const { data: allUsers, error } = await supabase
         .from('room_members')
         .select('user_id')
         .eq('room_id', roomId);
   
       if (error) throw error;
   
-      if (roomMembers && roomMembers.length > 0) {
-        // Find the other user (not the current user)
-        const otherMember = roomMembers.find(member => member.user_id !== user.id);
+      // Find the other user
+      if (allUsers && allUsers.length > 1) {
+        const otherUser = allUsers.find(member => member.user_id !== user.id);
         
-        if (otherMember) {
-          // Get username from auth users table
-          const { data: userData, error: userError } = await supabase
-            .from('auth.users')
-            .select('raw_user_meta_data')
-            .eq('id', otherMember.user_id)
+        if (otherUser) {
+          // Get username from profiles table (NOT auth.users)
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('username')
+            .eq('user_id', otherUser.user_id)
             .single();
   
-          if (userData && !userError) {
-            const username = userData.raw_user_meta_data?.username || 'Unknown User';
-            setChatPartner({ id: otherMember.user_id, name: username });
-          } else {
-            setChatPartner({ id: otherMember.user_id, name: 'Chat Partner' });
-          }
-        } else {
-          // No other user in room yet
-          setChatPartner({ id: null, name: 'Waiting for someone to join...' });
+          const partnerName = profile?.username || 'My Love';
+          setChatPartner({ id: otherUser.user_id, name: partnerName });
+          return;
         }
       }
+      
+      setChatPartner({ id: null, name: 'My Love' });
+      
     } catch (error) {
       console.error('Error loading chat partner:', error);
-      setChatPartner({ id: 'other-user', name: 'Your Friend' });
+      setChatPartner({ id: 'partner', name: 'My Love' });
     }
   };
 
@@ -159,26 +156,25 @@ const Chat = ({ user, roomId, onLogout }) => {
       console.error('Error updating typing status:', error);
     }
   };
-
   return (
     <div className="chat-container">
       <div className="chat-header">
-        <div className="chat-info">
-          <h3>{chatPartner ? `Chat with ${chatPartner.name}` : 'Private Chat'}</h3>
-          <div className="user-status">
-            <span className="current-user">You: {user.email?.split('@')[0]}</span>
-            {chatPartner && (
-              <PresenceIndicator 
-                roomId={roomId} 
-                userId={chatPartner.id} 
-                currentUser={user} 
-              />
-            )}
+        <button className="back-button" onClick={onBack}>←</button>
+        <div className="chat-partner-info">
+          <div className="chat-partner-name">{chatPartner?.name || 'Loading...'}</div>
+          <div className="chat-partner-status">
+            <PresenceIndicator 
+              roomId={roomId} 
+              userId={chatPartner?.id} 
+              currentUser={user} 
+            />
           </div>
         </div>
-        <button onClick={onLogout} className="logout-btn">
-          Logout
-        </button>
+        <div className="chat-header-icons">
+          <span>📞</span>
+          <span>📹</span>
+          <span>⋮</span>
+        </div>
       </div>
       
       <MessageList 
@@ -198,6 +194,7 @@ const Chat = ({ user, roomId, onLogout }) => {
         onTyping={handleTyping} 
       />
     </div>
+
   );
 };
 

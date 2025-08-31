@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import Login from './components/Login';
 import Chat from './components/Chat';
+import ChatList from './components/ChatList'; // ← ADDED MISSING IMPORT
 import './App.css';
 
 // Initialize Supabase client
@@ -17,6 +18,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [roomId, setRoomId] = useState(DEFAULT_ROOM_ID);
   const [error, setError] = useState(null);
+  const [showChatList, setShowChatList] = useState(true);
 
   useEffect(() => {
     checkAuthStatus();
@@ -146,7 +148,6 @@ function App() {
   
       if (roomError) {
         console.warn('Could not add user to room (might already exist):', roomError);
-        // Don't throw error - user can still use the app
       }
   
       // Update presence
@@ -181,6 +182,15 @@ function App() {
     }
   };
 
+  const handleSelectChat = (selectedRoomId) => {
+    setRoomId(selectedRoomId);
+    setShowChatList(false);
+  };
+
+  const handleBackToChatList = () => {
+    setShowChatList(true);
+  };
+
   const handleLogout = async () => {
     try {
       await supabase.auth.signOut();
@@ -208,7 +218,20 @@ function App() {
   return (
     <div className="app">
       {user ? (
-        <Chat user={user} roomId={roomId} onLogout={handleLogout} />
+        showChatList ? (
+          <ChatList 
+            user={user} 
+            onSelectChat={handleSelectChat}
+            onCreateNewChat={() => setRoomId(DEFAULT_ROOM_ID)}
+          />
+        ) : (
+          <Chat 
+            user={user} 
+            roomId={roomId} 
+            onLogout={handleLogout}
+            onBack={handleBackToChatList}
+          />
+        )
       ) : (
         <Login onLogin={handleLogin} onRegister={handleRegister} />
       )}
