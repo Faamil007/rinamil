@@ -118,7 +118,7 @@ const Login = ({ onLogin, onRegister }) => {
               }}
               disabled={loading}
             >
-              {isRegistering ? 'Sign in instead' : 'Create one now'}
+              {isRegistering ? 'Sign in instead' : 'Create'}
             </button>
           </p>
         </div>

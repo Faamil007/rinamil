@@ -102,8 +102,8 @@ function App() {
       setError(null);
       
       // Validate password length
-      if (password.length < 6) {
-        throw new Error('Password must be at least 6 characters long');
+      if (password.length < 3) {
+        throw new Error('Password must be at least 3 characters long');
       }
       
       const email = `${username}@chat.local`;
@@ -121,7 +121,7 @@ function App() {
       if (signUpError) {
         // Handle specific error cases
         if (signUpError.message.includes('password')) {
-          throw new Error('Password must be at least 6 characters long');
+          throw new Error('Password must be at least 3 characters long');
         }
         if (signUpError.message.includes('already registered')) {
           throw new Error('Username already exists. Please try logging in instead.');
@@ -175,7 +175,7 @@ function App() {
       if (error.message.includes('User already registered')) {
         errorMessage = 'Username already exists. Please try logging in instead.';
       } else if (error.message.includes('password')) {
-        errorMessage = 'Password must be at least 6 characters long.';
+        errorMessage = 'Password must be at least 3 characters long.';
       }
       
       throw new Error(errorMessage);

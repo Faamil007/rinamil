@@ -119,7 +119,7 @@ const ChatList = ({ user, onSelectChat, onCreateNewChat }) => {
     return (
       <div className="chat-list-container">
         <div className="chat-list-header">
-          <h1>WhatsApp</h1>
+          <h1>Rinamil</h1>
           <div className="header-icons">
             <span>🔍</span>
             <span>⋮</span>
